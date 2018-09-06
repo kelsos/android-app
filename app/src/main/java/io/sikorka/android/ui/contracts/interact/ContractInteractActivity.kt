@@ -20,7 +20,6 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.snackbar.Snackbar
 import io.sikorka.android.R
 import io.sikorka.android.core.contracts.model.ContractGas
-import io.sikorka.android.helpers.fail
 import io.sikorka.android.ui.BaseActivity
 import io.sikorka.android.ui.detector.qr.QrScannerActivity
 import io.sikorka.android.ui.detector.select.SupportedDetector
@@ -31,13 +30,18 @@ import io.sikorka.android.ui.dialogs.showInfo
 import io.sikorka.android.ui.dialogs.verifyPassphraseDialog
 import io.sikorka.android.ui.gasselectiondialog.GasSelectionDialog
 import io.sikorka.android.utils.getBitmapFromVectorDrawable
-import kotlinx.android.synthetic.main.activity__contract_interact.*
+import kotlinx.android.synthetic.main.activity__contract_interact.contract_interact__contract_address
+import kotlinx.android.synthetic.main.activity__contract_interact.contract_interact__verify
+import kotlinx.android.synthetic.main.activity__contract_interact.interact_contract__detector_address
+import kotlinx.android.synthetic.main.activity__contract_interact.interact_contract__detector_address_group
+import kotlinx.android.synthetic.main.activity__contract_interact.interact_contract__interact_with_detector
+import kotlinx.android.synthetic.main.activity__contract_interact.interact_contract__manual_gas_selection
 import org.koin.android.ext.android.inject
 import timber.log.Timber
 
-class ContractInteractActivity : BaseActivity(), ContractInteractView {
+class ContractInteractActivity : BaseActivity() {
 
-  private val presenter: ContractInteractPresenter by inject()
+  private val viewModel: ContractInteractViewModel by inject()
 
   private var dialog: AlertDialog? = null
 
@@ -48,7 +52,7 @@ class ContractInteractActivity : BaseActivity(), ContractInteractView {
     setupToolbar(title = intent?.getStringExtra(NAME) ?: "")
 
     contract_interact__verify.setOnClickListener {
-      presenter.startClaimFlow()
+      viewModel.startClaimFlow()
     }
 
     contract_interact__contract_address.text = contractAddress
@@ -99,36 +103,30 @@ class ContractInteractActivity : BaseActivity(), ContractInteractView {
       clipboardManager.primaryClip = ClipData.newPlainText("Account", addressTextView.text)
     }
 
-    presenter.attach(this)
-    presenter.load(contractAddress)
+    viewModel.load(contractAddress)
   }
 
-  override fun startDetectorFlow() {
+  private fun startDetectorFlow() {
     startDetectorVerification()
   }
 
   private fun getGasSettings() {
     if (interact_contract__manual_gas_selection.isChecked) {
-      presenter.prepareGasSelection()
+      viewModel.prepareGasSelection()
     } else {
       Toast.makeText(this, "Not Implemented", Toast.LENGTH_SHORT).show()
     }
   }
 
-  override fun detector(hex: String) {
+  private fun detector(hex: String) {
     interact_contract__detector_address.text = hex
   }
 
-  override fun onDestroy() {
-    presenter.detach()
-    super.onDestroy()
-  }
-
-  override fun noDetector() {
+  private fun noDetector() {
     interact_contract__detector_address_group.isVisible = false
   }
 
-  override fun showConfirmationResult(confirmAnswer: Boolean) {
+  private fun showConfirmationResult(confirmAnswer: Boolean) {
     dialog?.dismiss()
     showInfo(
       R.string.contract_interact__success_title,
@@ -138,11 +136,11 @@ class ContractInteractActivity : BaseActivity(), ContractInteractView {
     }
   }
 
-  override fun update(name: String) {
+  private fun update(name: String) {
     supportActionBar?.title = name
   }
 
-  override fun showError() {
+  private fun showError() {
     Snackbar.make(
       contract_interact__verify,
       R.string.contract_interact__generic_error,
@@ -150,9 +148,9 @@ class ContractInteractActivity : BaseActivity(), ContractInteractView {
     ).show()
   }
 
-  override fun showGasSelection(gas: ContractGas) {
+  private fun showGasSelection(gas: ContractGas) {
     val dialog = GasSelectionDialog.create(supportFragmentManager, gas) {
-      presenter.cacheGas(gas)
+      viewModel.cacheGas(gas)
       showMethodChoice()
     }
     dialog.show()
@@ -168,7 +166,7 @@ class ContractInteractActivity : BaseActivity(), ContractInteractView {
 
   private fun requestUnlock() {
     verifyPassphraseDialog {
-      presenter.cachePassPhrase(it)
+      viewModel.cachePassPhrase(it)
       showConfirmation(
         R.string.contract_interact__proceed_with_claiming,
         R.string.contract_interact__proceed_with_claiming_content
@@ -178,7 +176,7 @@ class ContractInteractActivity : BaseActivity(), ContractInteractView {
           R.string.contact_interact__claiming_tokens
         )
         dialog?.show()
-        presenter.verify()
+        viewModel.verify()
       }
     }
   }
@@ -206,7 +204,7 @@ class ContractInteractActivity : BaseActivity(), ContractInteractView {
         ).show()
       } else {
 
-        presenter.cacheMessage(data.getStringExtra(QrScannerActivity.DATA))
+        viewModel.cacheMessage(data.getStringExtra(QrScannerActivity.DATA))
         getGasSettings()
       }
     }
@@ -214,7 +212,11 @@ class ContractInteractActivity : BaseActivity(), ContractInteractView {
   }
 
   private val contractAddress: String
-    get() = intent?.getStringExtra(CONTRACT_ADDRESS) ?: fail("expected a non null contract address")
+    get() {
+      return checkNotNull(intent?.getStringExtra(CONTRACT_ADDRESS)) {
+        "expected a non null contract address"
+      }
+    }
 
   private fun detectors(): List<SupportedDetector> {
     val detectors = ArrayList<SupportedDetector>()

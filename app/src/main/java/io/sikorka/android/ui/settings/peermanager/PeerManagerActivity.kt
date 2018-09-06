@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import io.sikorka.android.R
 import io.sikorka.android.core.configuration.peers.PeerEntry
+import io.sikorka.android.data.observeNonNull
 import io.sikorka.android.io.copyToFile
 import io.sikorka.android.ui.BaseActivity
 import io.sikorka.android.ui.MenuTint
@@ -21,12 +22,12 @@ import kotterknife.bindView
 import org.koin.android.ext.android.inject
 import java.io.File
 
-class PeerManagerActivity : BaseActivity(), PeerManagerView, Actions {
+class PeerManagerActivity : BaseActivity(), Actions {
 
   private val peers: RecyclerView by bindView(R.id.peer_manager__peers)
   private val loading: ProgressBar by bindView(R.id.peer_manager__loading_bar)
 
-  private val presenter: PeerManagerPresenter by inject()
+  private val viewModel: PeerManagerViewModel by inject()
 
   private val peerAdapter: PeerManagerAdapter by lazy { PeerManagerAdapter() }
 
@@ -46,13 +47,9 @@ class PeerManagerActivity : BaseActivity(), PeerManagerView, Actions {
     peers.adapter = peerAdapter
     peers.layoutManager = LinearLayoutManager(this)
 
-    presenter.attach(this)
-    presenter.load()
-  }
-
-  override fun onDestroy() {
-    presenter.detach()
-    super.onDestroy()
+    viewModel.peers().observeNonNull(this) {
+      update(it)
+    }
   }
 
   override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -74,7 +71,7 @@ class PeerManagerActivity : BaseActivity(), PeerManagerView, Actions {
       }
       R.id.action__download_dialog -> {
         urlInputDialog { url, merge ->
-          presenter.download(url, merge)
+          viewModel.download(url, merge)
         }.show()
         return true
       }
@@ -86,33 +83,33 @@ class PeerManagerActivity : BaseActivity(), PeerManagerView, Actions {
     }
   }
 
-  override fun downloadComplete() {
+  fun downloadComplete() {
     snackBar(R.string.peer_manager__peer_list_download_complete)
   }
 
-  override fun update(data: List<PeerEntry>) {
+  private fun update(data: List<PeerEntry>) {
     loading(false)
     peerAdapter.setList(data)
   }
 
-  override fun loadingError() {
+  private fun loadingError() {
     loading(false)
   }
 
-  override fun downloadFailed() {
+  private fun downloadFailed() {
     snackBar(R.string.peer_manager__error_downloading_file)
   }
 
-  override fun openFailed() {
+  private fun openFailed() {
     snackBar(R.string.peer_manager__error_opening_file)
   }
 
   override fun delete() {
     peerAdapter.deleteSelection()
-    presenter.save(peerAdapter.getList())
+    viewModel.save(peerAdapter.getList())
   }
 
-  override fun loading(loading: Boolean) {
+  private fun loading(loading: Boolean) {
     this.loading.isVisible = loading
   }
 
@@ -141,11 +138,11 @@ class PeerManagerActivity : BaseActivity(), PeerManagerView, Actions {
         temp
       }
 
-      presenter.saveFromFile(checkNotNull(file))
+      viewModel.saveFromFile(checkNotNull(file))
     }
   }
 
-  override fun openComplete() {
+  private fun openComplete() {
     snackBar(R.string.peer_manager__peer_list_loaded)
   }
 

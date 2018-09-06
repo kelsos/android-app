@@ -3,32 +3,34 @@ package io.sikorka.android.ui.contracts.dialog
 import android.annotation.SuppressLint
 import android.app.Dialog
 import android.os.Bundle
-import com.google.android.material.textfield.TextInputLayout
-import androidx.fragment.app.DialogFragment
-import androidx.fragment.app.FragmentManager
-import androidx.appcompat.app.AlertDialog
 import android.view.LayoutInflater
 import android.widget.EditText
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.FragmentManager
+import com.google.android.material.textfield.TextInputLayout
 import io.sikorka.android.R
 import io.sikorka.android.core.contracts.model.ContractGas
-import io.sikorka.android.helpers.fail
 import io.sikorka.android.ui.coloredSpan
 
-class ConfirmDeployDialog : androidx.fragment.app.DialogFragment() {
+class ConfirmDeployDialog : DialogFragment() {
 
   private lateinit var gasPriceWei: TextView
   private lateinit var gasLimitWei: TextView
-  private lateinit var passphraseInput: com.google.android.material.textfield.TextInputLayout
+  private lateinit var passphraseInput: TextInputLayout
 
   private lateinit var dialog: AlertDialog
 
-  private lateinit var fm: androidx.fragment.app.FragmentManager
+  private lateinit var fm: FragmentManager
   private lateinit var onDeployConfirm: OnDeployConfirm
   private lateinit var contractGas: ContractGas
 
   private val passphraseField: EditText
-    get() = passphraseInput.editText ?: fail("passphraseInput edittext was null")
+    get() {
+
+      return passphraseInput.editText ?: error("passphraseInput edittext was null")
+    }
 
   @SuppressLint("InflateParams")
   override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -40,7 +42,7 @@ class ConfirmDeployDialog : androidx.fragment.app.DialogFragment() {
     dialog = AlertDialog.Builder(context)
       .setTitle(coloredSpan(R.string.confirm_deploy__dialog_title))
       .setView(view)
-      .setPositiveButton(coloredSpan(R.string.confirm_deploy__positive_button), { dialog, _ ->
+      .setPositiveButton(coloredSpan(R.string.confirm_deploy__positive_button)) { dialog, _ ->
         val passphrase = passphraseField.text.toString()
         if (passphrase.isBlank()) {
           passphraseInput.error = getString(R.string.confirm_deploy__empty_passphrase)
@@ -51,8 +53,8 @@ class ConfirmDeployDialog : androidx.fragment.app.DialogFragment() {
 
         dialog.dismiss()
         onDeployConfirm(passphrase)
-      })
-      .setNegativeButton(coloredSpan(android.R.string.cancel), { dialog, _ -> dialog.dismiss() })
+      }
+      .setNegativeButton(coloredSpan(android.R.string.cancel)) { dialog, _ -> dialog.dismiss() }
       .create()
 
     view.run {
@@ -77,7 +79,7 @@ class ConfirmDeployDialog : androidx.fragment.app.DialogFragment() {
   companion object {
     private const val TAG = "io.sikorka.android.ui.contracts.deploy.ConfirmDeployDialog"
     fun create(
-      fm: androidx.fragment.app.FragmentManager,
+      fm: FragmentManager,
       gas: ContractGas,
       onDeployConfirm: OnDeployConfirm
     ): ConfirmDeployDialog {

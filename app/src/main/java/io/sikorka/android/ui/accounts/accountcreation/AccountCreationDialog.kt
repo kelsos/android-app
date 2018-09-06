@@ -6,24 +6,26 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
 import com.google.android.material.textfield.TextInputLayout
 import io.sikorka.android.R
 import io.sikorka.android.core.accounts.ValidationResult
 import io.sikorka.android.core.accounts.ValidationResult.Code
-import io.sikorka.android.helpers.fail
+import io.sikorka.android.data.Result
 import io.sikorka.android.ui.asString
 import io.sikorka.android.ui.coloredSpan
+import kotlinx.coroutines.experimental.launch
 import org.koin.android.ext.android.inject
 
-class AccountCreationDialog : androidx.fragment.app.DialogFragment(), AccountCreationDialogView {
+class AccountCreationDialog : DialogFragment() {
 
   private lateinit var passphraseField: EditText
   private lateinit var passphraseConfirmationField: EditText
   private lateinit var passphraseInput: TextInputLayout
   private lateinit var passphraseConfirmationInput: TextInputLayout
 
-  private val presenter: AccountCreationDialogPresenter by inject()
+  private val viewModel: AccountCreationDialogViewModel by inject()
 
   private lateinit var dialog: AlertDialog
 
@@ -38,9 +40,7 @@ class AccountCreationDialog : androidx.fragment.app.DialogFragment(), AccountCre
 
   @SuppressLint("InflateParams")
   override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-    val context = context ?: fail("context was null")
-
-    val inflater = LayoutInflater.from(context)
+    val inflater = LayoutInflater.from(requireContext())
     val view = inflater.inflate(R.layout.dialog__account_create, null, false)
     view.run {
       passphraseField = findViewById(R.id.accounts__passphrase)
@@ -49,13 +49,18 @@ class AccountCreationDialog : androidx.fragment.app.DialogFragment(), AccountCre
       passphraseConfirmationInput = findViewById(R.id.accounts__passphrase_confirmation_input)
     }
 
-    val builder = AlertDialog.Builder(context)
+    val builder = AlertDialog.Builder(requireContext())
       .setTitle(coloredSpan(R.string.account__create_account))
       .setView(view)
       .setCancelable(false)
-      .setOnDismissListener { presenter.detach() }
       .setPositiveButton(coloredSpan(android.R.string.ok)) { _, _ ->
-        presenter.createAccount(passphrase, passphraseConfirmation)
+        launch {
+          val result = viewModel.createAccount(passphrase, passphraseConfirmation)
+          when (result) {
+            is Result.Success<*> -> complete()
+            is Result.Failure<*> -> showError(result.code)
+          }
+        }
       }
       .setNegativeButton(coloredSpan(android.R.string.cancel)) { dialog, _ -> dialog.dismiss() }
 
@@ -63,12 +68,7 @@ class AccountCreationDialog : androidx.fragment.app.DialogFragment(), AccountCre
     return dialog
   }
 
-  override fun onStart() {
-    super.onStart()
-    presenter.attach(this)
-  }
-
-  override fun showError(@Code code: Int) {
+  private fun showError(@Code code: Int) {
     clearErrors()
     when (code) {
       ValidationResult.CONFIRMATION_MISMATCH -> {
@@ -86,7 +86,7 @@ class AccountCreationDialog : androidx.fragment.app.DialogFragment(), AccountCre
     }
   }
 
-  override fun complete() {
+  private fun complete() {
     onDismissAction.invoke()
     dialog.dismiss()
   }

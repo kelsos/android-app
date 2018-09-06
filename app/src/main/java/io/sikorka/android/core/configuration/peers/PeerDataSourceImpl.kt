@@ -1,13 +1,14 @@
 package io.sikorka.android.core.configuration.peers
 
+import arrow.core.Try
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import io.reactivex.Completable
-import io.reactivex.Single
 import io.sikorka.android.core.configuration.ConfigurationProvider
 import io.sikorka.android.core.configuration.Network
-import io.sikorka.android.helpers.Lce
+import io.sikorka.android.data.Result
+import io.sikorka.android.utils.schedulers.AppDispatchers
+import kotlinx.coroutines.experimental.withContext
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -18,7 +19,8 @@ import java.io.File
 class PeerDataSourceImpl(
   private val configurationProvider: ConfigurationProvider,
   private val moshi: Moshi,
-  private val cache: File
+  private val cache: File,
+  private val dispatchers: AppDispatchers
 ) : PeerDataSource {
 
   private fun loadFromFile(peerFile: File): List<PeerEntry> {
@@ -80,22 +82,25 @@ class PeerDataSourceImpl(
     }
   }
 
-  override fun peers(): Single<Lce<List<PeerEntry>>> = Single.fromCallable {
-    val configuration = configurationProvider.getActive()
-    check(configuration.network == Network.ROPSTEN) {
-      "this is currently only supported for ROPSTEN"
+  override suspend fun peers(): Result<List<PeerEntry>> {
+    return withContext(dispatchers.io) {
+      Try {
+        val configuration = configurationProvider.getActive()
+        check(configuration.network == Network.ROPSTEN) {
+          "this is currently only supported for ROPSTEN"
+        }
+
+        val filePath = checkNotNull(configuration.peerFilePath) { "peer file path was null" }
+        val peerFile = File(filePath)
+        return@Try loadFromFile(peerFile)
+      }.fold({ Result.Failure<List<PeerEntry>>() }, { Result.Success(it) })
     }
+  }
 
-    val filePath = checkNotNull(configuration.peerFilePath) { "peer file path was null" }
-    val peerFile = File(filePath)
-
-    return@fromCallable Lce.success(loadFromFile(peerFile))
-  }.onErrorReturn { Lce.failure(it) }
-
-  override fun savePeers(
+  override suspend fun savePeers(
     peers: List<PeerEntry>,
     merge: Boolean
-  ): Completable = Completable.fromCallable {
+  ) {
     val configuration = configurationProvider.getActive()
     check(configuration.network == Network.ROPSTEN) {
       "this is currently only supported for ROPSTEN"
@@ -129,27 +134,35 @@ class PeerDataSourceImpl(
     }
   }
 
-  override fun loadPeersFromFile(
+  override suspend fun loadPeersFromFile(
     file: File,
     merge: Boolean
-  ): Completable = Single.fromCallable {
+  ) {
 
-    if (file.length() == 0L) {
-      throw EmptyFileException()
+    withContext(dispatchers.io) {
+      if (file.length() == 0L) {
+        throw EmptyFileException()
+      }
+
+      val peers = try {
+        loadFromFile(file)
+      } catch (ex: Exception) {
+        Timber.v("Couldn't load peer list properly ${ex.message}")
+        parsePeerList(file)
+      }
+
+      savePeers(peers, merge)
     }
+  }
 
-    return@fromCallable try {
-      loadFromFile(file)
-    } catch (ex: Exception) {
-      Timber.v("Couldn't load peer list properly ${ex.message}")
-      parsePeerList(file)
-    }
-  }.flatMapCompletable { peers -> savePeers(peers, merge) }
-
-  override fun loadPeersFromUrl(
+  override suspend fun loadPeersFromUrl(
     url: String,
     merge: Boolean
-  ): Completable = Single.fromCallable {
-    downloadPeers(url)
-  }.flatMapCompletable { loadPeersFromFile(it, merge) }
+  ) {
+    withContext(dispatchers.io) {
+      val peers = downloadPeers(url)
+      loadPeersFromFile(peers, merge)
+    }
+
+  }
 }

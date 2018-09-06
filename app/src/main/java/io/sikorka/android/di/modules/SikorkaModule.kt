@@ -128,11 +128,11 @@ val sikorkaModule = module {
   single { LightClientProvider() }
   single { UserLocationProvider() }
 
-  factory { PeerDataSourceImpl(get(), get(), get(Names.APPLICATION_CACHE)) as PeerDataSource }
+  factory { PeerDataSourceImpl(get(), get(), get(Names.APPLICATION_CACHE), get()) as PeerDataSource }
   factory { create<ServiceManagerImpl>() as ServiceManager }
 
-  factory { AccountRepository(get(Names.KEYSTORE_PATH), get(), get()) }
-  factory { ContractRepository(get(), get(), get(), get()) }
+  factory { AccountRepository(get(Names.KEYSTORE_PATH), get(), get(), get()) }
+  factory { ContractRepository(get(), get(), get(), get(), get()) }
 
   factory { BtScannerImpl(get()) as BtScanner }
   factory { BtConnectorImpl() as BtConnector }

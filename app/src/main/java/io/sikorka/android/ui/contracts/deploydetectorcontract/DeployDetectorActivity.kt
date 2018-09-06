@@ -14,7 +14,6 @@ import com.google.android.material.snackbar.Snackbar
 import io.sikorka.android.R
 import io.sikorka.android.core.contracts.model.ContractGas
 import io.sikorka.android.core.contracts.model.DetectorContractData
-import io.sikorka.android.helpers.fail
 import io.sikorka.android.ui.BaseActivity
 import io.sikorka.android.ui.contracts.DeployContractCodes
 import io.sikorka.android.ui.contracts.dialog.ConfirmDeployDialog
@@ -31,9 +30,9 @@ import kotlinx.android.synthetic.main.activity_deploy_detector.deploy_detector__
 import kotlinx.android.synthetic.main.activity_deploy_detector.deploy_detector__detector_address
 import org.koin.android.ext.android.inject
 
-class DeployDetectorActivity : BaseActivity(), DeployDetectorView {
+class DeployDetectorActivity : BaseActivity() {
 
-  private val presenter: DeployDetectorPresenter by inject()
+  private val viewModel: DeployDetectorViewModel by inject()
 
   private var myMarker: Marker? = null
 
@@ -84,31 +83,25 @@ class DeployDetectorActivity : BaseActivity(), DeployDetectorView {
       }
 
       if (deploy_detector__advanced_options.isChecked) {
-        presenter.prepareGasSelection()
+        viewModel.prepareGasSelection()
       } else {
-        presenter.prepareDeployWithDefaults()
+        viewModel.prepareDeployWithDefaults()
       }
     }
-    presenter.attach(this)
   }
 
-  override fun onDestroy() {
-    presenter.detach()
-    super.onDestroy()
-  }
-
-  override fun showGasDialog(gas: ContractGas) {
+  private fun showGasDialog(gas: ContractGas) {
     val dialog = GasSelectionDialog.create(supportFragmentManager, gas) {
       requestDeployAuthorization(it)
     }
     dialog.show()
   }
 
-  override fun showError(message: String) {
+  private fun showError(message: String) {
     Snackbar.make(deploy_detector__detector_address, message, Snackbar.LENGTH_SHORT).show()
   }
 
-  override fun showError(code: Int) {
+  private fun showError(code: Int) {
     when (code) {
       DeployContractCodes.NO_GAS_PREFERENCES -> {
         Snackbar.make(
@@ -127,7 +120,7 @@ class DeployDetectorActivity : BaseActivity(), DeployDetectorView {
     }
   }
 
-  override fun complete(hex: String) {
+  private fun complete(hex: String) {
     createDialog(
       R.string.contract_deployment__transaction_sent_title,
       getString(R.string.contract_deployment__transaction_sent_content, hex)
@@ -136,7 +129,7 @@ class DeployDetectorActivity : BaseActivity(), DeployDetectorView {
     }
   }
 
-  override fun requestDeployAuthorization(gas: ContractGas) {
+  private fun requestDeployAuthorization(gas: ContractGas) {
     val supply = deploy_detector__contract_tokens.editText?.value()?.toLong() ?: 0
     val dialog = ConfirmDeployDialog.create(supportFragmentManager, gas) { passphrase ->
       val data = DetectorContractData(
@@ -148,24 +141,34 @@ class DeployDetectorActivity : BaseActivity(), DeployDetectorView {
         longitude,
         supply
       )
-      presenter.deployContract(passphrase, data)
+      viewModel.deployContract(passphrase, data)
     }
     dialog.show()
   }
 
   private val address: String
-    get() = intent?.getStringExtra(DETECTOR_ADDRESS) ?: fail("expected a non null value")
+    get() {
+
+      return intent?.getStringExtra(DETECTOR_ADDRESS) ?: error("expected a non null value")
+    }
 
   private val latitude: Double
-    get() = intent?.getDoubleExtra(LATITUDE, 0.0) ?: fail("latitude was null")
+    get() {
+
+      return intent?.getDoubleExtra(LATITUDE, 0.0) ?: error("latitude was null")
+    }
 
   private val longitude: Double
-    get() = intent?.getDoubleExtra(LONGITUDE, 0.0) ?: fail("longitude was null")
+    get() {
+
+      return intent?.getDoubleExtra(LONGITUDE, 0.0) ?: error("longitude was null")
+    }
 
   private val authorizationDuration: Int
     get() {
+
       val editText =
-        deploy_detector__authorization_duration.editText ?: fail("there was no edittext")
+        deploy_detector__authorization_duration.editText ?: error("there was no edittext")
       val value = editText.value()
       return if (value.isBlank()) {
         0
@@ -176,7 +179,7 @@ class DeployDetectorActivity : BaseActivity(), DeployDetectorView {
 
   private val name: String
     get() {
-      val editText = deploy_detector__contract_name.editText ?: fail("null")
+      val editText = deploy_detector__contract_name.editText ?: error("null")
       return editText.value()
     }
 

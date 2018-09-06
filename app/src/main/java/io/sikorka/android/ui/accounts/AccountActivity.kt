@@ -11,6 +11,7 @@ import android.view.Menu
 import android.view.MenuItem
 import io.sikorka.android.R
 import io.sikorka.android.core.accounts.AccountsModel
+import io.sikorka.android.data.observeNonNull
 import io.sikorka.android.ui.BaseActivity
 import io.sikorka.android.ui.MenuTint
 import io.sikorka.android.ui.accounts.accountcreation.AccountCreationDialog
@@ -21,13 +22,13 @@ import kotterknife.bindView
 import org.koin.android.ext.android.inject
 import timber.log.Timber
 
-class AccountActivity : BaseActivity(), AccountView {
+class AccountActivity : BaseActivity() {
 
   private val accountsRecycler: RecyclerView by bindView(R.id.accounts__recycler_view)
 
   private val createAccount: FloatingActionButton by bindView(R.id.accounts__create_account)
 
-  private val presenter: AccountPresenter by inject()
+  private val viewModel: AccountViewModel by inject()
 
   private val adapter: AccountAdapter by inject()
 
@@ -41,36 +42,28 @@ class AccountActivity : BaseActivity(), AccountView {
 
     createAccount.setOnClickListener {
       val dialog = AccountCreationDialog.newInstance(supportFragmentManager) {
-        presenter.loadAccounts()
+
       }
       dialog.show()
     }
-    presenter.attach(this)
-    presenter.loadAccounts()
+
+
     adapter.setAccountActionListeners({ account ->
-      verifyPassphraseDialog { presenter.deleteAccount(account, it) }
+      verifyPassphraseDialog { viewModel.deleteAccount(account, it) }
     }, {
       AccountExportActivity.start(this, it.address.hex)
     }) {
-      presenter.setDefault(it)
+      viewModel.setDefault(it)
+    }
+
+    viewModel.accounts().observeNonNull(this) {
+      accountsLoaded(it)
     }
   }
 
-  override fun onDestroy() {
-    presenter.detach()
-
-    super.onDestroy()
-  }
-
-  override fun accountsLoaded(accounts: AccountsModel) {
+  private fun accountsLoaded(accounts: AccountsModel) {
     Timber.v("Accounts ${accounts.accounts.size}")
     adapter.update(accounts)
-  }
-
-  override fun loading() {
-  }
-
-  override fun showError(message: String) {
   }
 
   override fun onOptionsItemSelected(item: MenuItem): Boolean {

@@ -135,6 +135,16 @@ dependencies {
   implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:0.25.0"
   implementation "org.jetbrains.kotlinx:kotlinx-coroutines-rx2:0.25.0"
 
+  // arrow
+  def arrow_version = "0.7.3"
+  implementation "io.arrow-kt:arrow-core:$arrow_version"
+  implementation "io.arrow-kt:arrow-syntax:$arrow_version"
+  implementation "io.arrow-kt:arrow-typeclasses:$arrow_version"
+  implementation "io.arrow-kt:arrow-data:$arrow_version"
+  implementation "io.arrow-kt:arrow-instances-core:$arrow_version"
+  implementation "io.arrow-kt:arrow-instances-data:$arrow_version"
+  kapt "io.arrow-kt:arrow-annotations-processor:$arrow_version"
+
   //QR support
   implementation 'me.dm7.barcodescanner:zxing:1.9.8'
 

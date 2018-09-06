@@ -1,7 +1,5 @@
 package io.sikorka.android.core.model
 
-import io.sikorka.android.helpers.fail
-
 data class TransactionReceipt(
   val successful: Boolean,
   val txHash: String,
@@ -22,6 +20,6 @@ data class TransactionReceipt(
   }
 
   fun contractAddress(): String {
-    return contractAddressHex ?: fail("it seems that address was null.")
+    return checkNotNull(contractAddressHex) { "it seems that address was null." }
   }
 }

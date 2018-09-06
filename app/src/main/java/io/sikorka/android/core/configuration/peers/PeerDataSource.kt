@@ -1,20 +1,18 @@
 package io.sikorka.android.core.configuration.peers
 
-import io.reactivex.Completable
-import io.reactivex.Single
-import io.sikorka.android.helpers.Lce
+import io.sikorka.android.data.Result
 import java.io.File
 
 interface PeerDataSource {
 
-  fun peers(): Single<Lce<List<PeerEntry>>>
+  suspend fun peers(): Result<List<PeerEntry>>
 
-  fun savePeers(
+  suspend fun savePeers(
     peers: List<PeerEntry>,
     merge: Boolean = false
-  ): Completable
+  )
 
-  fun loadPeersFromUrl(url: String, merge: Boolean = true): Completable
+  suspend fun loadPeersFromUrl(url: String, merge: Boolean = true)
 
-  fun loadPeersFromFile(file: File, merge: Boolean = true): Completable
+  suspend fun loadPeersFromFile(file: File, merge: Boolean = true)
 }

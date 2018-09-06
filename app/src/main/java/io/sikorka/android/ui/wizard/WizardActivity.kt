@@ -14,9 +14,9 @@ import io.sikorka.android.ui.wizard.slides.accountsetup.AccountSetupFragment
 import io.sikorka.android.ui.wizard.slides.networkselection.NetworkSelectionFragment
 import org.koin.android.ext.android.inject
 
-class WizardActivity : AppIntro2(), WizardView {
+class WizardActivity : AppIntro2() {
 
-  private val presenter: WizardPresenter by inject()
+  private val presenter: WizardViewModel by inject()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -37,19 +37,13 @@ class WizardActivity : AppIntro2(), WizardView {
     setNextPageSwipeLock(false)
     setSwipeLock(false)
     setIndicatorColor(R.color.colorAccent, R.color.colorAccentLight)
-    presenter.attach(this)
-  }
-
-  override fun onDestroy() {
-    presenter.detach()
-    super.onDestroy()
   }
 
   override fun onDonePressed(currentFragment: androidx.fragment.app.Fragment?) {
-    presenter.checkForDefaultAccount()
+    accountsExists(presenter.checkForDefaultAccount())
   }
 
-  override fun accountsExists(exists: Boolean) {
+  fun accountsExists(exists: Boolean) {
     if (exists) {
       done()
     } else {

@@ -2,51 +2,38 @@ package io.sikorka.android.ui
 
 import io.sikorka.android.ui.accounts.AccountAdapterPresenter
 import io.sikorka.android.ui.accounts.AccountAdapterPresenterImpl
-import io.sikorka.android.ui.accounts.AccountPresenter
-import io.sikorka.android.ui.accounts.AccountPresenterImpl
-import io.sikorka.android.ui.accounts.accountcreation.AccountCreationDialogPresenter
-import io.sikorka.android.ui.accounts.accountcreation.AccountCreationDialogPresenterImpl
-import io.sikorka.android.ui.accounts.accountexport.AccountExportPresenter
-import io.sikorka.android.ui.accounts.accountexport.AccountExportPresenterImpl
-import io.sikorka.android.ui.accounts.accountimport.AccountImportPresenter
-import io.sikorka.android.ui.accounts.accountimport.AccountImportPresenterImpl
-import io.sikorka.android.ui.contracts.DeployContractPresenter
-import io.sikorka.android.ui.contracts.DeployContractPresenterImpl
-import io.sikorka.android.ui.contracts.deploydetectorcontract.DeployDetectorPresenter
-import io.sikorka.android.ui.contracts.deploydetectorcontract.DeployDetectorPresenterImpl
-import io.sikorka.android.ui.contracts.interact.ContractInteractPresenter
-import io.sikorka.android.ui.contracts.interact.ContractInteractPresenterImpl
-import io.sikorka.android.ui.contracts.pending.PendingContractsPresenter
-import io.sikorka.android.ui.contracts.pending.PendingContractsPresenterImpl
-import io.sikorka.android.ui.detector.bluetooth.FindBtDetectorPresenter
-import io.sikorka.android.ui.detector.bluetooth.FindBtDetectorPresenterImpl
-import io.sikorka.android.ui.main.MainPresenter
-import io.sikorka.android.ui.main.MainPresenterImpl
-import io.sikorka.android.ui.settings.peermanager.PeerManagerPresenter
-import io.sikorka.android.ui.settings.peermanager.PeerManagerPresenterImpl
-import io.sikorka.android.ui.wizard.WizardPresenter
-import io.sikorka.android.ui.wizard.WizardPresenterImpl
-import io.sikorka.android.ui.wizard.slides.accountsetup.AccountSetupPresenter
-import io.sikorka.android.ui.wizard.slides.accountsetup.AccountSetupPresenterImpl
-import io.sikorka.android.ui.wizard.slides.networkselection.NetworkSelectionPresenter
-import io.sikorka.android.ui.wizard.slides.networkselection.NetworkSelectionPresenterImpl
+import io.sikorka.android.ui.accounts.AccountViewModel
+import io.sikorka.android.ui.accounts.accountcreation.AccountCreationDialogViewModel
+import io.sikorka.android.ui.accounts.accountexport.AccountExportViewModel
+import io.sikorka.android.ui.accounts.accountimport.AccountImportViewModel
+import io.sikorka.android.ui.contracts.DeployContractViewModel
+import io.sikorka.android.ui.contracts.deploydetectorcontract.DeployDetectorViewModel
+import io.sikorka.android.ui.contracts.interact.ContractInteractViewModel
+import io.sikorka.android.ui.contracts.pending.PendingContractsViewModel
+import io.sikorka.android.ui.detector.bluetooth.FindBtDetectorViewModel
+import io.sikorka.android.ui.main.MainViewModel
+import io.sikorka.android.ui.settings.peermanager.PeerManagerViewModel
+import io.sikorka.android.ui.wizard.WizardViewModel
+import io.sikorka.android.ui.wizard.slides.accountsetup.AccountSetupViewModel
+import io.sikorka.android.ui.wizard.slides.networkselection.NetworkSelectionViewModel
+import org.koin.androidx.viewmodel.ext.koin.viewModel
 import org.koin.dsl.module.module
 
 val viewModule = module {
-  factory { create<AccountCreationDialogPresenterImpl>() as AccountCreationDialogPresenter }
-  factory { create<AccountImportPresenterImpl>() as AccountImportPresenter }
+  viewModel { create<AccountCreationDialogViewModel>() }
+  viewModel { create<AccountImportViewModel>() }
   factory { create<AccountAdapterPresenterImpl>() as AccountAdapterPresenter }
-  factory { create<AccountPresenterImpl>() as AccountPresenter }
-  factory { create<AccountExportPresenterImpl>() as AccountExportPresenter }
-  factory { create<NetworkSelectionPresenterImpl>() as NetworkSelectionPresenter }
-  factory { create<AccountSetupPresenterImpl>() as AccountSetupPresenter }
-  factory { create<PendingContractsPresenterImpl>() as PendingContractsPresenter }
-  factory { create<DeployContractPresenterImpl>() as DeployContractPresenter }
-  factory { create<DeployDetectorPresenterImpl>() as DeployDetectorPresenter }
+  viewModel { create<AccountViewModel>() }
+  viewModel { create<AccountExportViewModel>() }
+  viewModel { create<NetworkSelectionViewModel>() }
+  viewModel { create<AccountSetupViewModel>() }
+  viewModel { create<PendingContractsViewModel>() }
+  viewModel { create<DeployContractViewModel>() }
+  viewModel { create<DeployDetectorViewModel>() }
 
-  factory { create<PeerManagerPresenterImpl>() as PeerManagerPresenter }
-  factory { create<WizardPresenterImpl>() as WizardPresenter }
-  factory { create<MainPresenterImpl>() as MainPresenter }
-  factory { create<FindBtDetectorPresenterImpl>() as FindBtDetectorPresenter }
-  factory { create<ContractInteractPresenterImpl>() as ContractInteractPresenter }
+  viewModel { create<PeerManagerViewModel>() }
+  viewModel { create<WizardViewModel>() }
+  viewModel { create<MainViewModel>() }
+  viewModel { create<FindBtDetectorViewModel>() }
+  viewModel { create<ContractInteractViewModel>() }
 }

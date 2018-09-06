@@ -1,48 +1,52 @@
 package io.sikorka.android.core.monitor
 
-import androidx.lifecycle.Observer
-import io.reactivex.disposables.Disposable
+import arrow.core.Try
 import io.sikorka.android.core.ethereumclient.LightClientProvider
+import io.sikorka.android.core.model.TransactionReceipt
+import io.sikorka.android.data.observeNonNull
 import io.sikorka.android.data.syncstatus.SyncStatusProvider
 import io.sikorka.android.data.transactions.PendingTransactionDao
-import io.sikorka.android.utils.isDisposed
-import io.sikorka.android.utils.schedulers.AppSchedulers
+import io.sikorka.android.utils.schedulers.AppDispatchers
+import kotlinx.coroutines.experimental.Deferred
+import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.withContext
 import timber.log.Timber
 
 class PendingTransactionMonitor(
   private val syncStatusProvider: SyncStatusProvider,
   private val pendingTransactionDao: PendingTransactionDao,
-  private val appSchedulers: AppSchedulers,
+  private val dispatchers: AppDispatchers,
   private val lightClientProvider: LightClientProvider
 ) : LifecycleMonitor() {
 
-  private var disposable: Disposable? = null
+  private var deferred: Deferred<Unit>? = null
 
   override fun start() {
     super.start()
-    syncStatusProvider.observe(this, Observer { _ ->
-
-      if (!lightClientProvider.initialized) {
-        Timber.v("No light client available yet")
-        return@Observer
+    syncStatusProvider.observeNonNull(this) { status ->
+      val deferredIsActive = deferred?.isActive ?: false
+      if (!status.syncing || !lightClientProvider.initialized || deferredIsActive) {
+        return@observeNonNull
       }
 
-      val lightClient = lightClientProvider.get()
+      deferred = checkPendingTransactions()
+    }
+  }
 
-      if (!disposable.isDisposed()) {
-        return@Observer
+  private fun checkPendingTransactions(): Deferred<Unit> {
+    return async(dispatchers.io) {
+      Try {
+        val lightClient = lightClientProvider.get()
+        withContext(dispatchers.db) {
+          pendingTransactionDao.pendingTransaction()
+        }.map {
+          lightClient.getTransactionReceipt(it.txHash)
+        }.flatMap { it.toOption().toList() }
+      }.toEither().fold({ emptyList<TransactionReceipt>() }, { receipts ->
+        return@fold receipts
+      }).forEach {
+        Timber.v("receipt ${it.successful} - ${it.txHash}")
       }
-
-      disposable = pendingTransactionDao.pendingTransaction()
-          .subscribeOn(appSchedulers.io)
-          .observeOn(appSchedulers.io)
-          .flatMapIterable { it }
-          .toObservable()
-          .flatMapSingle { lightClient.getTransactionReceipt(it.txHash) }
-          .subscribe({
-          }) {
-            Timber.e(it, "Failure while processing pending transactions")
-          }
-    })
+    }
   }
 }

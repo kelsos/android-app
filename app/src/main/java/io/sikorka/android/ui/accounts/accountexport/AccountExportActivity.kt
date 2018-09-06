@@ -11,17 +11,18 @@ import com.google.android.material.textfield.TextInputLayout
 import io.sikorka.android.R
 import io.sikorka.android.core.accounts.ValidationResult.CONFIRMATION_MISMATCH
 import io.sikorka.android.core.accounts.ValidationResult.EMPTY_PASSPHRASE
-import io.sikorka.android.helpers.fail
+import io.sikorka.android.data.Result
 import io.sikorka.android.ui.BaseActivity
 import io.sikorka.android.ui.accounts.accountexport.AccountExportCodes.ACCOUNT_PASSPHRASE_EMPTY
 import io.sikorka.android.ui.accounts.accountexport.AccountExportCodes.FAILED_TO_UNLOCK_ACCOUNT
 import io.sikorka.android.ui.dialogs.fileSelectionDialog
 import io.sikorka.android.ui.value
+import kotlinx.coroutines.experimental.launch
 import kotterknife.bindView
 import org.koin.android.ext.android.inject
 import java.io.File
 
-class AccountExportActivity : BaseActivity(), AccountExportView {
+class AccountExportActivity : BaseActivity() {
 
   private val account: TextView by bindView(R.id.account_export__account_hex)
   private val path: TextInputLayout by bindView(R.id.account_export__path_input)
@@ -38,7 +39,7 @@ class AccountExportActivity : BaseActivity(), AccountExportView {
   private val hex: String
     get() = intent?.getStringExtra(ACCOUNT_HEX) ?: ""
 
-  private val presenter: AccountExportPresenter by inject()
+  private val viewModel: AccountExportViewModel by inject()
 
   private fun clearErrors() {
     path.error = null
@@ -47,12 +48,12 @@ class AccountExportActivity : BaseActivity(), AccountExportView {
     filePassphraseConfirm.error = null
   }
 
-  override fun exportComplete() {
+  private fun exportComplete() {
     Snackbar.make(account, R.string.account_export__export_complete, Snackbar.LENGTH_SHORT)
     finish()
   }
 
-  override fun showError(code: Int) {
+  private fun showError(code: Int) {
     clearErrors()
 
     when (code) {
@@ -77,7 +78,7 @@ class AccountExportActivity : BaseActivity(), AccountExportView {
         accountPassphrase.error = errorMessage
       }
       else -> {
-        fail("Was not expecting $code")
+        error("Was not expecting $code")
       }
     }
   }
@@ -92,25 +93,26 @@ class AccountExportActivity : BaseActivity(), AccountExportView {
     setupToolbar(R.string.account_export__export_account_title)
 
     accountExportFab.setOnClickListener {
-      presenter.export(
-        account.value(),
-        accountPassphrase.value(),
-        filePassphrase.value(),
-        filePassphraseConfirm.value(),
-        path.value()
-      )
+      launch {
+        val result = viewModel.export(
+          account.value(),
+          accountPassphrase.value(),
+          filePassphrase.value(),
+          filePassphraseConfirm.value(),
+          path.value()
+        )
+        when(result) {
+          is Result.Success<*> -> exportComplete()
+          is Result.Failure -> showError(result.code)
+        }
+      }
+
     }
 
     selectDirectoryButton.setOnClickListener { _ ->
       fileSelectionDialog().show { onFolderSelection(it) }
     }
-    presenter.attach(this)
     account.text = hex
-  }
-
-  override fun onDestroy() {
-    presenter.detach()
-    super.onDestroy()
   }
 
   companion object {

@@ -13,5 +13,5 @@ abstract class PendingTransactionDao : BaseDao<PendingTransaction> {
   abstract fun pendingTransactions(): LiveData<List<PendingTransaction>>
 
   @Query("select * from pending_transactions where transaction_status = -1")
-  abstract fun pendingTransaction(): Flowable<List<PendingTransaction>>
+  abstract fun pendingTransaction(): List<PendingTransaction>
 }

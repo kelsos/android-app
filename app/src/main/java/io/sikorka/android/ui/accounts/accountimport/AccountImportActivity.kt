@@ -9,16 +9,18 @@ import com.google.android.material.textfield.TextInputLayout
 import io.sikorka.android.R
 import io.sikorka.android.core.accounts.ValidationResult.CONFIRMATION_MISMATCH
 import io.sikorka.android.core.accounts.ValidationResult.EMPTY_PASSPHRASE
+import io.sikorka.android.data.Result
 import io.sikorka.android.ui.BaseActivity
 import io.sikorka.android.ui.accounts.accountimport.AccountImportCodes.FAILED_TO_UNLOCK
 import io.sikorka.android.ui.dialogs.fileSelectionDialog
 import io.sikorka.android.ui.setValue
 import io.sikorka.android.ui.value
+import kotlinx.coroutines.experimental.launch
 import kotterknife.bindView
 import org.koin.android.ext.android.inject
 import java.io.File
 
-class AccountImportActivity : BaseActivity(), AccountImportView {
+class AccountImportActivity : BaseActivity() {
 
   private val filePassphrase: TextInputLayout by bindView(R.id.account_import__file_passphrase)
   private val filePath: TextInputLayout by bindView(R.id.account_import__file_path)
@@ -31,13 +33,13 @@ class AccountImportActivity : BaseActivity(), AccountImportView {
     R.id.account_import__account_passphrase_confirmation
   )
 
-  private val presenter: AccountImportPresenter by inject()
+  private val viewModel: AccountImportViewModel by inject()
 
   private fun onFileSelection(file: File) {
     filePath.setValue(file.absolutePath)
   }
 
-  override fun showError(code: Int) {
+  private fun showError(code: Int) {
     accountPassphraseConfirmation.error = null
     accountPassphrase.error = null
     filePassphrase.error = null
@@ -59,7 +61,7 @@ class AccountImportActivity : BaseActivity(), AccountImportView {
     }
   }
 
-  override fun importSuccess() {
+  private fun importSuccess() {
     snackBar(R.string.account_import__import_success)
     finish()
   }
@@ -71,23 +73,24 @@ class AccountImportActivity : BaseActivity(), AccountImportView {
     setupToolbar(R.string.account_import__import_account_title)
 
     importAction.setOnClickListener {
-      presenter.import(
-        filePath.value(),
-        filePassphrase.value(),
-        accountPassphrase.value(),
-        accountPassphraseConfirmation.value()
-      )
+      launch {
+        val result = viewModel.import(
+          filePath.value(),
+          filePassphrase.value(),
+          accountPassphrase.value(),
+          accountPassphraseConfirmation.value()
+        )
+        when(result) {
+          is Result.Success<*> -> importSuccess()
+          is Result.Failure -> showError(result.code)
+        }
+      }
+
     }
     selectFileButton.setOnClickListener { _ ->
       val dialog = fileSelectionDialog(true)
       dialog.show { onFileSelection(it) }
     }
-    presenter.attach(this)
-  }
-
-  override fun onDestroy() {
-    presenter.detach()
-    super.onDestroy()
   }
 
   companion object {

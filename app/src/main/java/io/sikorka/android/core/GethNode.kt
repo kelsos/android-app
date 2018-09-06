@@ -13,7 +13,6 @@ import io.sikorka.android.core.ethereumclient.LightClient
 import io.sikorka.android.core.ethereumclient.LightClientProvider
 import io.sikorka.android.data.syncstatus.SyncStatus
 import io.sikorka.android.data.syncstatus.SyncStatusProvider
-import io.sikorka.android.helpers.fail
 import io.sikorka.android.utils.lastThrottle
 import io.sikorka.android.utils.schedulers.AppSchedulers
 import org.ethereum.geth.Address
@@ -53,8 +52,10 @@ class GethNode(
     val nodeConfig = configuration.nodeConfig
 
     Timber.v("node data directory will be in $dataDir")
-    node = Geth.newNode(dataDir.absolutePath, nodeConfig)
-    val node = node ?: fail("what node?")
+    val node = Geth.newNode(dataDir.absolutePath, nodeConfig).also {
+      this.node = it
+    }
+
     node.start()
 
     lightClientProvider.initialize(LightClient(node.ethereumClient, ethContext))
@@ -93,18 +94,16 @@ class GethNode(
     account: AccountModel,
     gas: ContractGas,
     signer: TransactionSigner
-  ): Single<TransactOpts> {
-    return Single.fromCallable {
-      val signerAddress = Geth.newAddressFromHex(account.addressHex)
-      val opts = TransactOpts()
-      opts.setContext(ethContext)
-      opts.from = signerAddress
-      opts.nonce = ethereumClient.getPendingNonceAt(ethContext, signerAddress)
-      opts.setSigner { address, transaction -> signer(address, transaction, chainId()) }
-      opts.gasLimit = gas.limit
-      opts.gasPrice = Geth.newBigInt(gas.price)
-      return@fromCallable opts
-    }
+  ): TransactOpts {
+    val signerAddress = Geth.newAddressFromHex(account.addressHex)
+    val opts = TransactOpts()
+    opts.setContext(ethContext)
+    opts.from = signerAddress
+    opts.nonce = ethereumClient.getPendingNonceAt(ethContext, signerAddress)
+    opts.setSigner { address, transaction -> signer(address, transaction, chainId()) }
+    opts.gasLimit = gas.limit
+    opts.gasPrice = Geth.newBigInt(gas.price)
+    return opts
   }
 
   private fun chainId(): BigInt {
@@ -120,14 +119,13 @@ class GethNode(
   }.timeout(1, TimeUnit.SECONDS, schedulers.computation)
     .onErrorReturn { ContractGas(0, 0) }
 
-  fun ethereumClient(): Single<EthereumClient> = Single.fromCallable { ethereumClient }
+  fun ethereumClient(): EthereumClient = ethereumClient
 
   private val ethereumClient: EthereumClient
     get() {
       checkNodeStatus()
-      val ethNode = node ?: fail("no node")
-      val ethereumClient = ethNode.ethereumClient
-      return ethereumClient ?: fail("no client")
+      val ethNode = checkNotNull(node) { "no node" }
+      return checkNotNull(ethNode.ethereumClient) { "no client" }
     }
 
   private fun checkNodeStatus() {
@@ -175,7 +173,8 @@ class GethNode(
   }
 
   private fun checkStatus(): Observable<SyncStatus> = Observable.fromCallable {
-    val ethNode = node ?: fail("node was null")
+
+    val ethNode = checkNotNull(node) { "node was null" }
     val peers = ethNode.peersInfo
     val peerCount = peers.size().toInt()
     loggingThrottler.accept(peers)

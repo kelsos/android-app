@@ -36,8 +36,11 @@ import io.sikorka.android.R
 import io.sikorka.android.SikorkaService
 import io.sikorka.android.core.accounts.AccountModel
 import io.sikorka.android.core.contracts.model.DeployedContractModel
+import io.sikorka.android.core.monitor.ContractStatus
+import io.sikorka.android.core.monitor.TransactionStatus
 import io.sikorka.android.data.contracts.deployed.DeployedSikorkaContract
 import io.sikorka.android.data.location.UserLocation
+import io.sikorka.android.data.observeNonNull
 import io.sikorka.android.data.syncstatus.SyncStatus
 import io.sikorka.android.ui.MenuTint
 import io.sikorka.android.ui.accounts.AccountActivity
@@ -68,19 +71,18 @@ import java.util.ArrayList
 import java.util.Random
 
 class MainActivity : AppCompatActivity(),
-  MainView,
   OnMapReadyCallback,
   NavigationView.OnNavigationItemSelectedListener {
 
-  private val presenter: MainPresenter by inject()
+  private val viewModel: MainViewModel by inject()
 
-  override fun notifyTransactionMined(txHash: String, success: Boolean) {
+  private fun notifyTransactionMined(txHash: String, success: Boolean) {
     val message = "Your transaction has been mined. " +
       "100 Sikorka example discount tokens have been transferred to your account"
     Snackbar.make(main__deploy_fab, message, Snackbar.LENGTH_LONG).show()
   }
 
-  override fun notifyContractMined(address: String, txHash: String, success: Boolean) {
+  private fun notifyContractMined(address: String, txHash: String, success: Boolean) {
     val message = if (success) {
       "Contract $address was mined successfully"
     } else {
@@ -104,7 +106,6 @@ class MainActivity : AppCompatActivity(),
     super.onCreate(savedInstanceState)
     setContentView(R.layout.activity__main)
 
-    presenter.attach(this)
     val mapFragment = supportFragmentManager.findFragmentById(R.id.main__map) as SupportMapFragment
     mapFragment.getMapAsync(this)
 
@@ -159,7 +160,28 @@ class MainActivity : AppCompatActivity(),
     }
 
     enableCopyAccount()
-    presenter.load()
+    viewModel.load()
+    viewModel.syncStatus().observeNonNull(this) {
+      updateSyncStatus(it)
+    }
+    viewModel.defaultAccountBalance().observeNonNull(this) {
+      updateAccountInfo(it, 0)
+    }
+    viewModel.deployedContracts().observeNonNull(this) {
+      updateDeployed(it)
+    }
+    viewModel.events().observeNonNull(this) {
+      val content = it.getContentIfNotHandled() ?: return@observeNonNull
+
+      when (content) {
+        is ContractStatus -> {
+          notifyContractMined(content.address, content.txHash, content.success)
+        }
+        is TransactionStatus -> {
+          notifyTransactionMined(content.txHash, content.success)
+        }
+      }
+    }
   }
 
   @SuppressLint("MissingPermission")
@@ -192,7 +214,7 @@ class MainActivity : AppCompatActivity(),
           latitude = location.latitude
         }
 
-        presenter.userLocation(UserLocation.set(latitude, longitude))
+        viewModel.userLocation(UserLocation.set(latitude, longitude))
 
         updateMyMarker(latitude, longitude, map)
       }
@@ -200,10 +222,10 @@ class MainActivity : AppCompatActivity(),
 
   override fun onStart() {
     super.onStart()
-    presenter.load()
+    viewModel.load()
   }
 
-  override fun updateDeployed(data: List<DeployedSikorkaContract>) {
+  private fun updateDeployed(data: List<DeployedSikorkaContract>) {
     val googleMap = map ?: return
 
     markers.forEach {
@@ -226,7 +248,7 @@ class MainActivity : AppCompatActivity(),
     }
   }
 
-  override fun updateSyncStatus(status: SyncStatus) {
+  private fun updateSyncStatus(status: SyncStatus) {
     onSyncStatus(status.syncing)
     val statusMessage = if (status.syncing) {
       resources.getQuantityString(
@@ -248,7 +270,7 @@ class MainActivity : AppCompatActivity(),
     main__deploy_fab.isVisible = syncing
   }
 
-  override fun updateAccountInfo(model: AccountModel, preferredBalancePrecision: Int) {
+  private fun updateAccountInfo(model: AccountModel, preferredBalancePrecision: Int) {
     val view = main__nav_view.getHeaderView(0)
     view.findViewById<TextView>(R.id.main__header_account).text = model.addressHex
     view.findViewById<TextView>(R.id.main__header_balance).text = if (model.ethBalance < 0) {
@@ -321,12 +343,6 @@ class MainActivity : AppCompatActivity(),
     return permissionState == PackageManager.PERMISSION_GRANTED
   }
 
-  override fun onDestroy() {
-    presenter.detach()
-
-    super.onDestroy()
-  }
-
   override fun onBackPressed() {
     if (drawer_layout.isDrawerOpen(GravityCompat.START)) {
       drawer_layout.closeDrawer(GravityCompat.START)
@@ -354,7 +370,7 @@ class MainActivity : AppCompatActivity(),
         true
       }
       R.id.action_reload -> {
-        presenter.load()
+        viewModel.load()
         true
       }
       else -> super.onOptionsItemSelected(item)
@@ -403,14 +419,14 @@ class MainActivity : AppCompatActivity(),
     }
   }
 
-  override fun error(error: Throwable) {
+  private fun error(error: Throwable) {
     val message = error.message ?: getString(R.string.errors__generic_error)
     Snackbar.make(main__deploy_fab, message, Snackbar.LENGTH_SHORT).show()
   }
 
   private var progress: Snackbar? = null
 
-  override fun loading(loading: Boolean) {
+  private fun loading(loading: Boolean) {
     main__deploy_fab.isVisible = !loading
 
     if (loading) {
@@ -424,7 +440,7 @@ class MainActivity : AppCompatActivity(),
     }
   }
 
-  override fun update(model: DeployedContractModel) {
+  private fun update(model: DeployedContractModel) {
     val googleMap = map ?: return
 
     val bitmap = BitmapFactory.decodeResource(resources, R.drawable.ic_ethereum_icon)

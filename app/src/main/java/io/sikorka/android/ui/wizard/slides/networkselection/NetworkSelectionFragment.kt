@@ -8,29 +8,24 @@ import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
+import androidx.fragment.app.Fragment
 import io.sikorka.android.R
 import io.sikorka.android.core.configuration.Network
 import io.sikorka.android.ui.showShortSnack
 import kotterknife.bindView
 import org.koin.android.ext.android.inject
 
-class NetworkSelectionFragment : androidx.fragment.app.Fragment(), NetworkSelectionView {
+class NetworkSelectionFragment : Fragment() {
 
   private val ropstenSelection: TextView by bindView(R.id.network_selection__ropsten)
   private val mainnetSelection: TextView by bindView(R.id.network_selection__mainnet)
   private val rinkebySelection: TextView by bindView(R.id.network_selection__rinkeby)
 
-  private val presenter: NetworkSelectionPresenter by inject()
+  private val viewModel: NetworkSelectionViewModel by inject()
 
   override fun onStart() {
     super.onStart()
-    presenter.attach(this)
-    presenter.updateSelected()
-  }
-
-  override fun onStop() {
-    super.onStop()
-    presenter.detach()
+    updateNetworkSelection(viewModel.updateSelected())
   }
 
   override fun onCreateView(
@@ -52,10 +47,13 @@ class NetworkSelectionFragment : androidx.fragment.app.Fragment(), NetworkSelect
       rinkebySelection.showShortSnack(R.string.network_selection__network_not_available)
     }
 
-    ropstenSelection.setOnClickListener { presenter.selectNetwork(Network.ROPSTEN) }
+    ropstenSelection.setOnClickListener {
+      val selectNetwork = viewModel.selectNetwork(Network.ROPSTEN)
+      updateNetworkSelection(selectNetwork)
+    }
   }
 
-  override fun updateNetworkSelection(@Network.Selection network: Int) {
+  private fun updateNetworkSelection(@Network.Selection network: Int) {
     ropstenSelection.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
     rinkebySelection.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
     mainnetSelection.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)

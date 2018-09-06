@@ -8,15 +8,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.snackbar.Snackbar
 import io.sikorka.android.R
 import io.sikorka.android.data.contracts.pending.PendingContract
+import io.sikorka.android.data.observeNonNull
 import io.sikorka.android.ui.BaseActivity
 import kotlinx.android.synthetic.main.activity_pending_contracts.*
 import org.koin.android.ext.android.inject
 
-class PendingContractsActivity : BaseActivity(), PendingContractsView {
+class PendingContractsActivity : BaseActivity() {
 
   private lateinit var pendingContractAdapter: PendingContractsAdapter
 
-  private val presenter: PendingContractsPresenter by inject()
+  private val viewModel: PendingContractsViewModel by inject()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -29,21 +30,17 @@ class PendingContractsActivity : BaseActivity(), PendingContractsView {
     }
 
     setupToolbar(R.string.pending_contracts__title)
-    presenter.attach(this)
-    presenter.load()
+    viewModel.pendingContracts().observeNonNull(this) {
+      update(it)
+    }
   }
 
-  override fun onDestroy() {
-    presenter.detach()
-    super.onDestroy()
-  }
-
-  override fun update(data: List<PendingContract>) {
+  private fun update(data: List<PendingContract>) {
     pending_contract__no_data_group.isVisible = data.isEmpty()
     pendingContractAdapter.update(data)
   }
 
-  override fun error(message: String?) {
+  private fun error(message: String?) {
     if (message == null) {
       return
     }

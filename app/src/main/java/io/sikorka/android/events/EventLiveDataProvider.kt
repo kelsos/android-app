@@ -1,18 +1,23 @@
 package io.sikorka.android.events
 
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 
 class EventLiveDataProvider {
-  private val liveData = MutableLiveData<Event<Any>>()
+  private val events = MutableLiveData<Event<Any>>()
 
   fun post(event: Event<Any>) {
-    liveData.postValue(event)
+    events.postValue(event)
+  }
+
+  fun events(): LiveData<Event<Any>> {
+    return events
   }
 
   fun observe(owner: LifecycleOwner, observer: (Event<Any>) -> Unit) {
-    liveData.observe(owner, Observer { event: Event<Any>? ->
+    events.observe(owner, Observer { event: Event<Any>? ->
       if (event != null) {
         observer(event)
       }

@@ -6,32 +6,31 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
 import io.sikorka.android.R
-import io.sikorka.android.helpers.fail
 import io.sikorka.android.ui.accounts.accountcreation.AccountCreationDialog
 import io.sikorka.android.ui.accounts.accountimport.AccountImportActivity
 import kotterknife.bindView
 import org.koin.android.ext.android.inject
 
-class AccountSetupFragment : androidx.fragment.app.Fragment(), AccountSetupView {
+class AccountSetupFragment : Fragment() {
 
   private val accountAddress: TextView by bindView(R.id.account_setup__account_address)
   private val createNew: TextView by bindView(R.id.account_setup__create_new)
   private val importAccount: TextView by bindView(R.id.account_setup__import_account)
 
-  private val presenter: AccountSetupPresenter by inject()
+  private val viewModel: AccountSetupViewModel by inject()
 
   private fun onCreateNewPressed() {
-    val fm = fragmentManager ?: fail("fragmentManager was null")
+    val fm = fragmentManager ?: error("fragmentManager was null")
     val dialog = AccountCreationDialog.newInstance(fm) {
-      presenter.loadAccount()
+      viewModel.account()
     }
     dialog.show()
   }
 
   private fun onAccountImportPressed() {
-    val context = context ?: fail("context was null")
-    AccountImportActivity.start(context)
+    AccountImportActivity.start(requireContext())
   }
 
   override fun onCreateView(
@@ -51,16 +50,10 @@ class AccountSetupFragment : androidx.fragment.app.Fragment(), AccountSetupView 
 
   override fun onStart() {
     super.onStart()
-    presenter.attach(this)
-    presenter.loadAccount()
+    setAccount(viewModel.account())
   }
 
-  override fun onStop() {
-    super.onStop()
-    presenter.detach()
-  }
-
-  override fun setAccount(accountHex: String) {
+  private fun setAccount(accountHex: String) {
     accountAddress.text = accountHex
     if (!accountAddress.isVisible) {
       accountAddress.isVisible = true

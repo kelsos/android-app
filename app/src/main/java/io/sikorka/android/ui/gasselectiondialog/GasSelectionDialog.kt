@@ -16,7 +16,6 @@ import io.sikorka.android.core.contracts.model.ContractGas
 import io.sikorka.android.core.findUnit
 import io.sikorka.android.core.valueToUnit
 import io.sikorka.android.core.valueToWei
-import io.sikorka.android.helpers.fail
 import io.sikorka.android.ui.coloredSpan
 
 class GasSelectionDialog : DialogFragment() {
@@ -81,13 +80,16 @@ class GasSelectionDialog : DialogFragment() {
 
   private var gasPrice: Long
     get() {
-      val editText = gasPriceInput.editText ?: fail("edit text was null")
-      val unit = gasPriceUnit.selectedItem as? String ?: fail("invalid unit")
+
+      val editText = gasPriceInput.editText ?: error("edit text was null")
+
+      val unit = gasPriceUnit.selectedItem as? String ?: error("invalid unit")
       val price = editText.text.toString()
       return valueToWei(price.toLong(), unit)
     }
     set(value) {
-      val editText = gasPriceInput.editText ?: fail("edit text was null")
+
+      val editText = gasPriceInput.editText ?: error("edit text was null")
       val gasUnit = findUnit(value)
       val gasPrice = valueToUnit(value, gasUnit)
       editText.setText(gasPrice.toString())
@@ -96,13 +98,16 @@ class GasSelectionDialog : DialogFragment() {
 
   private var gasLimit: Long
     get() {
-      val editText = gasLimitInput.editText ?: fail("editText was null for gasLimit")
-      val unit = gasLimitUnit.selectedItem as? String ?: fail("invalid unit")
+
+      val editText = gasLimitInput.editText ?: error("editText was null for gasLimit")
+
+      val unit = gasLimitUnit.selectedItem as? String ?: error("invalid unit")
       val limit = editText.text.toString()
       return valueToWei(limit.toLong(), unit)
     }
     set(value) {
-      val editText = gasLimitInput.editText ?: fail("editText was null")
+
+      val editText = gasLimitInput.editText ?: error("editText was null")
       val gasLimUnit = findUnit(value)
       val gasLimit = valueToUnit(value, gasLimUnit)
       editText.setText(gasLimit.toString())

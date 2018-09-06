@@ -10,7 +10,6 @@ import io.reactivex.disposables.Disposable
 import io.reactivex.rxkotlin.plusAssign
 import io.reactivex.schedulers.Schedulers
 import io.sikorka.android.R
-import io.sikorka.android.helpers.fail
 import io.sikorka.android.io.detectors.BtConnector
 import io.sikorka.android.io.detectors.BtScanner
 import io.sikorka.android.ui.BaseActivity
@@ -26,13 +25,13 @@ import org.koin.android.ext.android.inject
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
-class FindBtDetectorActivity : BaseActivity(), FindBtDetectorView {
+class FindBtDetectorActivity : BaseActivity() {
 
   private val btScanner: BtScanner by inject()
 
   private val btConnector: BtConnector by inject()
 
-  private val presenter: FindBtDetectorPresenter by inject()
+  private val viewModel: FindBtDetectorViewModel by inject()
 
   private val detectorAdapter: FindDetectorAdapter by inject()
 
@@ -57,7 +56,6 @@ class FindBtDetectorActivity : BaseActivity(), FindBtDetectorView {
 
     discover()
     find_detector__swipe_layout.setOnRefreshListener { discover() }
-    presenter.attach(this)
 
     detectorAdapter.setOnClickListener { device ->
       val dialog = progress(
@@ -86,7 +84,6 @@ class FindBtDetectorActivity : BaseActivity(), FindBtDetectorView {
 
   override fun onDestroy() {
     detectorAdapter.setOnClickListener(null)
-    presenter.detach()
     compositeDisposable.clear()
     super.onDestroy()
   }
@@ -120,10 +117,16 @@ class FindBtDetectorActivity : BaseActivity(), FindBtDetectorView {
   }
 
   private val latitude: Double
-    get() = intent?.getDoubleExtra(LATITUDE, 0.0) ?: fail("got a null value instead")
+    get() {
+
+      return intent?.getDoubleExtra(LATITUDE, 0.0) ?: error("got a null value instead")
+    }
 
   private val longitude: Double
-    get() = intent?.getDoubleExtra(LONGITUDE, 0.0) ?: fail("got a null value instead")
+    get() {
+
+      return intent?.getDoubleExtra(LONGITUDE, 0.0) ?: error("got a null value instead")
+    }
 
   companion object {
 

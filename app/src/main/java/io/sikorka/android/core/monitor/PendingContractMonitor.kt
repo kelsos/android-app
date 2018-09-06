@@ -1,59 +1,55 @@
 package io.sikorka.android.core.monitor
 
-import androidx.lifecycle.Observer
 import io.reactivex.disposables.Disposable
-import io.reactivex.rxkotlin.toFlowable
 import io.sikorka.android.core.ethereumclient.LightClientProvider
+import io.sikorka.android.core.model.TransactionReceipt
 import io.sikorka.android.data.contracts.pending.PendingContractDao
+import io.sikorka.android.data.observeNonNull
+import io.sikorka.android.data.syncstatus.SyncStatus
 import io.sikorka.android.data.syncstatus.SyncStatusProvider
 import io.sikorka.android.events.Event
 import io.sikorka.android.events.EventLiveDataProvider
-import io.sikorka.android.utils.isDisposed
-import io.sikorka.android.utils.schedulers.AppSchedulers
-import timber.log.Timber
+import io.sikorka.android.utils.schedulers.AppDispatchers
+import kotlinx.coroutines.experimental.Deferred
+import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.withContext
 
 class PendingContractMonitor(
   syncStatusProvider: SyncStatusProvider,
   private val lightClientProvider: LightClientProvider,
   private val pendingContractDao: PendingContractDao,
-  private val appSchedulers: AppSchedulers,
+  private val dispatchers: AppDispatchers,
   private val bus: EventLiveDataProvider
 ) : LifecycleMonitor() {
   private var disposable: Disposable? = null
   private var statusUpdateListener: statusUpdateListener? = null
+  private var deferred: Deferred<List<Unit>>? = null
 
   init {
-    syncStatusProvider.observe(this, Observer { status ->
-      if (status == null || !status.syncing) {
-        return@Observer
-      }
-
-      if (!lightClientProvider.initialized) {
-        return@Observer
-      }
-
-      if (!disposable.isDisposed()) {
-        return@Observer
+    syncStatusProvider.observeNonNull(this) { status: SyncStatus ->
+      val deferredIsActive = deferred?.isActive ?: false
+      if (!status.syncing || !lightClientProvider.initialized || deferredIsActive) {
+        return@observeNonNull
       }
 
       val lightClient = lightClientProvider.get()
 
-      disposable = pendingContractDao.getAllPendingContracts()
-        .flatMap { it.toFlowable() }
-        .flatMapSingle { pending ->
-          lightClient.getTransactionReceipt(pending.transactionHash)
-            .map { it.withContractAddress(pending.contractAddress) }
+      deferred = async(dispatchers.io) {
+        withContext(dispatchers.db) {
+          pendingContractDao.getAllPendingContractsList()
+        }.map { pendingTransaction ->
+          lightClient.getTransactionReceipt(pendingTransaction.transactionHash)
+            .map { it.withContractAddress(pendingTransaction.contractAddress) }
+            .toOption().fold({ Unit }) { receipt: TransactionReceipt ->
+              pendingContractDao.deleteByContractAddress(receipt.contractAddress())
+              statusUpdateListener?.invoke(receipt)
+              bus.post(Event(ContractStatus(receipt.contractAddress(), receipt.txHash, receipt.successful)))
+            }
         }
-        .observeOn(appSchedulers.monitor)
-        .subscribeOn(appSchedulers.monitor)
-        .subscribe({
-          pendingContractDao.deleteByContractAddress(it.contractAddress())
-          statusUpdateListener?.invoke(it)
-          bus.post(Event(ContractStatus(it.contractAddress(), it.txHash, it.successful)))
-        }) {
-          Timber.e(it, "Db operation failed")
-        }
-    })
+      }
+
+
+    }
   }
 
   override fun stop() {

@@ -1,6 +1,7 @@
 package io.sikorka.android.core.ethereumclient
 
-import io.reactivex.Single
+import arrow.core.Either
+import arrow.core.Try
 import io.sikorka.android.core.TransactionNotFoundException
 import io.sikorka.android.core.model.TransactionReceipt
 import io.sikorka.android.core.model.converters.GethReceiptConverter
@@ -17,18 +18,20 @@ class LightClient(
 ) {
   private val receiptConverter = GethReceiptConverter()
 
-  fun getTransactionReceipt(txHashHex: String): Single<TransactionReceipt> = Single.fromCallable {
-    val hash = Geth.newHashFromHex(txHashHex)
-    val receipt = ethereumClient.getTransactionReceipt(context, hash)
-    return@fromCallable receiptConverter.convert(receipt)
-  }.onErrorResumeNext {
-    val message = it.message ?: ""
-    val throwable = if (message.contains("not found", true)) {
-      TransactionNotFoundException(txHashHex, it)
-    } else {
-      it
-    }
-    return@onErrorResumeNext Single.error<TransactionReceipt>(throwable)
+  fun getTransactionReceipt(txHashHex: String): Either<Throwable, TransactionReceipt> {
+    return Try {
+      val hash = Geth.newHashFromHex(txHashHex)
+      val receipt = ethereumClient.getTransactionReceipt(context, hash)
+      return@Try receiptConverter.convert(receipt)
+    }.toEither()
+      .mapLeft {
+        val message = it.message ?: ""
+        return@mapLeft if (message.contains("not found", true)) {
+          TransactionNotFoundException(txHashHex, it)
+        } else {
+          it
+        }
+      }
   }
 
   /**

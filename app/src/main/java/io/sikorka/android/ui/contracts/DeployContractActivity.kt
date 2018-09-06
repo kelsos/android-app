@@ -25,9 +25,9 @@ import kotlinx.android.synthetic.main.activity__deploy_contract.deploy_contract_
 import kotlinx.android.synthetic.main.activity__deploy_contract.deploy_contract__token_supply
 import org.koin.android.ext.android.inject
 
-class DeployContractActivity : BaseActivity(), DeployContractView, OnMapReadyCallback {
+class DeployContractActivity : BaseActivity(), OnMapReadyCallback {
 
-  private val presenter: DeployContractPresenter by inject()
+  private val viewModel: DeployContractViewModel by inject()
 
   override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -55,18 +55,17 @@ class DeployContractActivity : BaseActivity(), DeployContractView, OnMapReadyCal
       }
 
       if (deploy_contract__advanced_options.isChecked) {
-        presenter.prepareGasSelection()
+        viewModel.prepareGasSelection()
       } else {
-        presenter.prepareDeployWithDefaults()
+        viewModel.prepareDeployWithDefaults()
       }
     }
 
     setupToolbar(R.string.deploy_contract__deploy_contract_title)
-    presenter.attach(this)
-    presenter.load()
+    viewModel.load()
   }
 
-  override fun showError(code: Int) {
+  private fun showError(code: Int) {
     when (code) {
       NO_GAS_PREFERENCES -> {
         com.google.android.material.snackbar.Snackbar.make(
@@ -78,29 +77,29 @@ class DeployContractActivity : BaseActivity(), DeployContractView, OnMapReadyCal
     }
   }
 
-  override fun showGasDialog(gas: ContractGas) {
+  private fun showGasDialog(gas: ContractGas) {
     val dialog = GasSelectionDialog.create(supportFragmentManager, gas) {
       requestDeployAuthorization(it)
     }
     dialog.show()
   }
 
-  override fun requestDeployAuthorization(gas: ContractGas) {
+  private fun requestDeployAuthorization(gas: ContractGas) {
     val supply = deploy_contract__token_supply.editText?.value()?.toLong() ?: 0
 
     val dialog = ConfirmDeployDialog.create(supportFragmentManager, gas) { passphrase ->
       val contractInfo = ContractData(contractName, gas, latitude, longitude, supply)
-      presenter.deployContract(passphrase, contractInfo)
+      viewModel.deployContract(passphrase, contractInfo)
     }
     dialog.show()
   }
 
-  override fun showError(message: String?) {
+  private fun showError(message: String?) {
     com.google.android.material.snackbar.Snackbar.make(deploy_contract__deploy_fab, message
       ?: "error", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
   }
 
-  override fun complete(hex: String?) {
+  private fun complete(hex: String?) {
     showInfo(
       R.string.app_name,
       R.string.deploy_contract__contract_creation_submitted,
@@ -116,13 +115,7 @@ class DeployContractActivity : BaseActivity(), DeployContractView, OnMapReadyCal
       return editText?.text.toString()
     }
 
-  override fun onDestroy() {
-    presenter.detach()
-
-    super.onDestroy()
-  }
-
-  override fun setSuggestedGasPrice(gasPrice: Long) {
+  private fun setSuggestedGasPrice(gasPrice: Long) {
   }
 
   private fun updateMyMarker(latitude: Double, longitude: Double, map: GoogleMap) {
